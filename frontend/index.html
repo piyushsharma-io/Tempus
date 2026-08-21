@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="TEMPUS learns from your time estimates and tracks focused work.">
+  <title>TEMPUS — Time made visible</title>
+  <style>
+    :root { --ink:#172033; --muted:#64748b; --line:#dbe3ef; --page:#f5f7fb; --surface:#fff; --primary:#5b44d6; --primary-dark:#4631ae; --success:#087f5b; --danger:#b42318; --warning:#865700; --warning-bg:#fff4dc; --shadow:0 12px 30px rgba(34,47,74,.08); }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--page); font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button,input { font:inherit; }
+    button { cursor:pointer; }
+    .shell { width:min(1120px,calc(100% - 32px)); margin:0 auto; }
+    header { padding:48px 0 22px; text-align:center; }
+    .eyebrow { margin:0 0 8px; color:var(--primary); font-size:.78rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    h1 { margin:0; font-size:clamp(2.35rem,7vw,4.2rem); line-height:1; letter-spacing:-.065em; }
+    .tagline { max-width:620px; margin:14px auto 0; color:var(--muted); font-size:1.05rem; }
+    .tabs { display:flex; justify-content:center; gap:8px; margin-top:27px; }
+    .tab { padding:9px 15px; border:1px solid transparent; border-radius:9px; color:var(--muted); background:transparent; font-weight:750; }
+    .tab[aria-selected="true"] { color:var(--primary); background:#eeecff; border-color:#dcd7ff; }
+    .tab-panel[hidden] { display:none; }
+    .panel { padding:clamp(20px,4vw,32px); background:var(--surface); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); }
+    .panel h2 { margin:0; font-size:1.25rem; }
+    .panel-copy { margin:6px 0 22px; color:var(--muted); }
+    .task-form { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:14px; align-items:end; }
+    label { display:grid; gap:7px; color:#3d4b63; font-size:.86rem; font-weight:700; }
+    input { min-width:0; width:100%; padding:11px 12px; color:var(--ink); background:#fff; border:1px solid #cbd5e1; border-radius:10px; outline:none; }
+    input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(91,68,214,.13); }
+    .button { min-height:44px; padding:10px 16px; border:0; border-radius:10px; color:#fff; background:var(--primary); font-weight:800; white-space:nowrap; }
+    .button:hover { background:var(--primary-dark); }
+    .button.secondary { color:var(--primary); background:#eeecff; }
+    .button.secondary:hover { background:#e2dfff; }
+    .button.danger { background:var(--danger); }
+    .button:disabled { opacity:.6; cursor:wait; }
+    .prediction { display:none; margin-top:18px; padding:14px 16px; border-radius:12px; background:#eeecff; color:#392887; }
+    .prediction.visible { display:block; }
+    .prediction.error { color:#a12222; background:#fff0f0; }
+    .dashboard { display:grid; grid-template-columns:minmax(0,2fr) minmax(270px,1fr); gap:24px; margin-top:26px; align-items:start; }
+    .section-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    .section-heading p { margin:0; color:var(--muted); font-size:.9rem; }
+    .task-list,.stats-list { display:grid; gap:12px; }
+    .task-card { padding:18px; border:1px solid var(--line); border-radius:14px; background:#fff; }
+    .task-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .task-title { margin:0; font-size:1.05rem; }
+    .badge { padding:4px 8px; border-radius:999px; color:#4b3aa9; background:#f0edff; font-size:.75rem; font-weight:800; white-space:nowrap; }
+    .timing { display:flex; flex-wrap:wrap; gap:8px 18px; margin:12px 0 0; color:var(--muted); font-size:.9rem; }
+    .timing strong { color:var(--ink); }
+    .task-actions,.manual-completion { display:flex; flex-wrap:wrap; gap:8px; margin-top:15px; }
+    .manual-completion input { width:118px; }
+    .done { margin:14px 0 0; color:var(--success); font-size:.9rem; font-weight:750; }
+    .stat-card { padding:15px; border:1px solid var(--line); border-radius:13px; }
+    .stat-label { margin:0; color:var(--muted); font-size:.85rem; }
+    .factor { margin:3px 0; font-size:1.55rem; font-weight:850; letter-spacing:-.04em; }
+    .stat-explanation { margin:0; font-size:.9rem; }
+    .empty { padding:36px 20px; color:var(--muted); text-align:center; border:1px dashed #cbd5e1; border-radius:14px; }
+    .tip { margin:20px 0 0; padding:14px; color:var(--warning); background:var(--warning-bg); border-radius:12px; font-size:.9rem; }
+    .active-panel { border-color:#c8c1ff; background:linear-gradient(135deg,#fff 0%,#f3f1ff 100%); }
+    .active-heading { display:flex; justify-content:space-between; align-items:center; gap:14px; }
+    .active-heading h2 { font-size:clamp(1.25rem,4vw,1.65rem); }
+    .live-label { margin:0; color:var(--primary); font-size:.75rem; font-weight:850; letter-spacing:.1em; text-transform:uppercase; }
+    .timer-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:24px 0 18px; }
+    .timer-metric { padding:14px; border:1px solid #dedaff; border-radius:13px; background:rgba(255,255,255,.75); }
+    .timer-metric span { display:block; color:var(--muted); font-size:.8rem; font-weight:700; }
+    .timer-metric strong { display:block; margin-top:3px; font-size:clamp(1.18rem,3vw,1.7rem); letter-spacing:-.04em; }
+    .active-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .break-note { margin:0; color:var(--muted); font-size:.88rem; }
+    .records-layout { display:grid; gap:24px; }
+    .chart-wrap { width:100%; overflow:hidden; }
+    .line-chart { display:block; width:100%; height:auto; min-height:220px; }
+    .chart-legend { display:flex; flex-wrap:wrap; gap:15px; margin:12px 0 0; color:var(--muted); font-size:.85rem; }
+    .chart-key { display:inline-flex; align-items:center; gap:6px; }
+    .chart-dot { width:10px; height:10px; border-radius:50%; }
+    .chart-dot.estimate { background:#94a3b8; } .chart-dot.actual { background:var(--primary); }
+    .analytics-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+    .metric-card { padding:17px; border:1px solid var(--line); border-radius:14px; }
+    .metric-card p { margin:0; color:var(--muted); font-size:.85rem; }
+    .metric-card strong { display:block; margin:3px 0; font-size:1.8rem; letter-spacing:-.05em; }
+    .metric-card small { color:var(--muted); }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:670px; font-size:.9rem; }
+    th,td { padding:12px 10px; border-bottom:1px solid var(--line); text-align:left; }
+    th { color:var(--muted); font-size:.76rem; letter-spacing:.05em; text-transform:uppercase; }
+    td:last-child,th:last-child { text-align:right; }
+    .positive { color:var(--danger); font-weight:700; } .negative { color:var(--success); font-weight:700; }
+    .footer { padding:0 0 28px; color:var(--muted); text-align:center; font-size:.85rem; }
+    .watermark { margin-top:6px; color:#94a3b8; font-size:.7rem; letter-spacing:.04em; }
+    @media (max-width:800px) { .task-form,.dashboard { grid-template-columns:1fr; } .task-form .button { width:100%; } }
+    @media (max-width:560px) { .timer-grid,.analytics-grid { grid-template-columns:1fr; } }
+    @media (max-width:460px) { .shell { width:min(100% - 22px,1120px); } header { padding-top:34px; } .panel { border-radius:16px; } .task-top,.active-heading { align-items:flex-start; flex-direction:column; } .manual-completion input { flex:1; } }
+  </style>
+</head>
+<body>
+  <header class="shell">
+    <p class="eyebrow">Time made visible</p>
+    <h1>TEMPUS</h1>
+    <p class="tagline">Plan with your instincts, then let your real work reveal a better prediction.</p>
+    <nav class="tabs" aria-label="TEMPUS sections">
+      <button class="tab" type="button" role="tab" aria-selected="true" aria-controls="planner-panel" id="planner-tab">Planner</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="records-panel" id="records-tab">Records & insights</button>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section id="planner-panel" class="tab-panel" role="tabpanel" aria-labelledby="planner-tab">
+      <div id="composer-slot"></div>
+      <section class="dashboard">
+        <section class="panel" aria-labelledby="tasks-heading">
+          <div class="section-heading"><h2 id="tasks-heading">Your tasks</h2><p id="task-count"></p></div>
+          <div id="task-list" class="task-list"></div>
+        </section>
+        <aside class="panel" aria-labelledby="stats-heading">
+          <div class="section-heading"><h2 id="stats-heading">Your patterns</h2></div>
+          <div id="stats-list" class="stats-list"></div>
+          <p class="tip">Predictions use your 20 most recent completed tasks, giving newer work a little more say.</p>
+        </aside>
+      </section>
+    </section>
+
+    <section id="records-panel" class="tab-panel" role="tabpanel" aria-labelledby="records-tab" hidden>
+      <section class="records-layout">
+        <section class="panel" aria-labelledby="history-heading">
+          <div class="section-heading"><h2 id="history-heading">Estimate vs actual time</h2><p>Completed tasks, oldest first</p></div>
+          <div id="chart-wrap" class="chart-wrap"></div>
+        </section>
+        <section id="analytics-summary" class="analytics-grid" aria-label="Completion analytics"></section>
+        <section class="panel" aria-labelledby="record-heading">
+          <div class="section-heading"><h2 id="record-heading">Completion record</h2><p id="record-count"></p></div>
+          <div id="record-table" class="table-wrap"></div>
+        </section>
+      </section>
+    </section>
+  </main>
+  <footer class="footer shell">Your browser keeps your TEMPUS identity; avoid sensitive task titles in this public demo.<div class="watermark">by- Piyush Sharma</div></footer>
+
+  <script>
+    // TEMPUS — by- Piyush Sharma
+    const isLocalApp = ['file:', 'http:'].includes(window.location.protocol) && ['127.0.0.1', 'localhost', ''].includes(window.location.hostname);
+    const API_URL = isLocalApp ? 'http://127.0.0.1:5000' : '';
+    const USER_KEY = isLocalApp ? null : (() => {
+      const storedKey = localStorage.getItem('tempus_user_key');
+      if (storedKey) return storedKey;
+      const newKey = window.crypto?.randomUUID?.() || `tempus-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('tempus_user_key', newKey);
+      return newKey;
+    })();
+    const composerSlot = document.querySelector('#composer-slot');
+    const taskList = document.querySelector('#task-list');
+    const statsList = document.querySelector('#stats-list');
+    const taskCount = document.querySelector('#task-count');
+    const chartWrap = document.querySelector('#chart-wrap');
+    const analyticsSummary = document.querySelector('#analytics-summary');
+    const recordTable = document.querySelector('#record-table');
+    const recordCount = document.querySelector('#record-count');
+    let dashboardTasks = [];
+    let activeTimerId = null;
+
+    function formatMinutes(value) {
+      const minutes = Math.round(Number(value));
+      if (minutes < 60) return `${minutes} min`;
+      const hours = Math.floor(minutes / 60);
+      const remaining = minutes % 60;
+      return remaining ? `${hours} hr ${remaining} min` : `${hours} hr`;
+    }
+
+    function formatClock(seconds) {
+      const total = Math.max(0, Math.round(seconds));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const secs = total % 60;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function escapeHtml(value) {
+      const element = document.createElement('div');
+      element.textContent = value;
+      return element.innerHTML;
+    }
+
+    function showMessage(message, isError = false) {
+      const messageBox = document.querySelector('#prediction');
+      if (!messageBox) return;
+      messageBox.textContent = message;
+      messageBox.className = `prediction visible${isError ? ' error' : ''}`;
+    }
+
+    async function apiRequest(path, options = {}) {
+      const response = await fetch(`${API_URL}${path}`, {
+        ...options,
+        headers: { ...(USER_KEY ? { 'X-Tempus-User': USER_KEY } : {}), ...(options.headers || {}) },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Something went wrong.');
+      return data;
+    }
+
+    function renderComposer() {
+      composerSlot.innerHTML = `<section class="panel" aria-labelledby="new-task-heading">
+        <h2 id="new-task-heading">What are you planning?</h2>
+        <p class="panel-copy">Log your first instinct. TEMPUS will add your personalized prediction.</p>
+        <form id="task-form" class="task-form">
+          <label>Task title<input name="title" maxlength="160" placeholder="e.g. Finish biology notes" required></label>
+          <label>Category<input name="category" maxlength="60" placeholder="e.g. Reading" required></label>
+          <label>My estimate (min)<input name="estimated_minutes" type="number" min="1" step="1" placeholder="30" required></label>
+          <button id="submit-button" class="button" type="submit">Add task & Predict</button>
+        </form>
+        <div id="prediction" class="prediction" role="status" aria-live="polite"></div>
+      </section>`;
+      document.querySelector('#task-form').addEventListener('submit', createTask);
+    }
+
+    function activeTrackingSeconds(task) {
+      const startedAt = new Date(task.started_at).getTime();
+      const now = Date.now();
+      let paused = Number(task.paused_seconds || 0);
+      if (task.break_started_at) {
+        paused += Math.min((now - new Date(task.break_started_at).getTime()) / 1000, 300);
+      }
+      return Math.max(0, (now - startedAt) / 1000 - paused);
+    }
+
+    function remainingBreakSeconds(task) {
+      if (!task.break_started_at) return 0;
+      return Math.max(0, 300 - (Date.now() - new Date(task.break_started_at).getTime()) / 1000);
+    }
+
+    function renderActiveTask(task) {
+      composerSlot.innerHTML = `<section class="panel active-panel" aria-labelledby="active-task-heading">
+        <div class="active-heading"><div><p class="live-label">Task in progress</p><h2 id="active-task-heading">${escapeHtml(task.title)}</h2></div><span class="badge">${escapeHtml(task.category)}</span></div>
+        <div class="timer-grid">
+          <div class="timer-metric"><span>Tracked work</span><strong id="tracked-clock">00:00:00</strong></div>
+          <div class="timer-metric"><span>To predicted finish</span><strong id="countdown-clock">00:00:00</strong></div>
+          <div class="timer-metric"><span>Breaks available</span><strong id="break-count">${Math.max(0, 2 - task.break_count)} / 2</strong></div>
+        </div>
+        <div class="active-actions">
+          <button id="finish-task" class="button" type="button">Finish & log tracked time</button>
+          <button id="break-button" class="button secondary" type="button" ${task.predicted_minutes <= 40 || task.break_count >= 2 ? 'disabled' : ''}>Take 5-min break</button>
+          <p id="break-note" class="break-note"></p>
+        </div>
+        <div id="prediction" class="prediction" role="status" aria-live="polite"></div>
+      </section>`;
+      document.querySelector('#finish-task').addEventListener('click', () => finishTrackedTask(task.id));
+      document.querySelector('#break-button').addEventListener('click', () => startBreak(task.id));
+      startLiveTimer(task);
+    }
+
+    function startLiveTimer(task) {
+      clearInterval(activeTimerId);
+      const update = () => {
+        const tracked = activeTrackingSeconds(task);
+        const remaining = task.predicted_minutes * 60 - tracked;
+        const breakRemaining = remainingBreakSeconds(task);
+        const trackedClock = document.querySelector('#tracked-clock');
+        const countdownClock = document.querySelector('#countdown-clock');
+        const breakNote = document.querySelector('#break-note');
+        const breakButton = document.querySelector('#break-button');
+        if (!trackedClock || !countdownClock) return;
+        trackedClock.textContent = formatClock(tracked);
+        countdownClock.textContent = remaining >= 0 ? formatClock(remaining) : `${formatClock(Math.abs(remaining))} over`;
+        if (breakRemaining > 0) {
+          breakNote.textContent = `Break in progress: ${formatClock(breakRemaining)} remaining. Work time is paused.`;
+          breakButton.disabled = true;
+        } else if (task.break_started_at) {
+          breakNote.textContent = 'Break complete. Your work timer is running again.';
+          breakButton.disabled = task.break_count >= 2;
+        } else if (task.predicted_minutes <= 40) {
+          breakNote.textContent = 'Breaks unlock for tasks predicted over 40 minutes.';
+        } else {
+          breakNote.textContent = 'Each break pauses tracking for five minutes.';
+        }
+      };
+      update();
+      activeTimerId = setInterval(update, 1000);
+    }
+
+    function renderTasks(tasks) {
+      const visibleTasks = tasks.filter(task => !task.is_active);
+      taskCount.textContent = tasks.length ? `${tasks.length} logged` : '';
+      if (!visibleTasks.length) {
+        taskList.innerHTML = '<div class="empty">No waiting tasks. Add a task above or finish the task you are tracking.</div>';
+        return;
+      }
+      taskList.innerHTML = visibleTasks.map(task => {
+        const isComplete = task.actual_minutes !== null;
+        const actual = isComplete ? `<span>Actual <strong>${formatMinutes(task.actual_minutes)}</strong></span>` : '';
+        const controls = isComplete ? '<p class="done">✓ Logged as complete</p>' : `<div class="task-actions"><button class="button start-task" data-task-id="${task.id}" type="button">Start task</button></div><form class="manual-completion" data-task-id="${task.id}"><input type="number" name="actual_minutes" min="1" step="1" placeholder="Actual min" aria-label="Actual minutes for ${escapeHtml(task.title)}" required><button class="button secondary" type="submit">Log actual</button></form>`;
+        return `<article class="task-card"><div class="task-top"><h3 class="task-title">${escapeHtml(task.title)}</h3><span class="badge">${escapeHtml(task.category)}</span></div><div class="timing"><span>Estimate <strong>${formatMinutes(task.estimated_minutes)}</strong></span><span>Prediction <strong>${formatMinutes(task.predicted_minutes)}</strong></span>${actual}</div>${controls}</article>`;
+      }).join('');
+    }
+
+    async function renderStats(tasks) {
+      const categories = [...new Set(tasks.map(task => task.category))];
+      if (!categories.length) { statsList.innerHTML = '<div class="empty">Complete a few tasks to reveal your patterns.</div>'; return; }
+      const results = await Promise.all(categories.map(async category => ({ category, ...(await apiRequest(`/stats/${encodeURIComponent(category)}`)) })));
+      statsList.innerHTML = results.map(({ category, correction_factor: factor }) => {
+        const sentence = factor === 1 ? 'Still learning — add two completions for a personalized signal.' : factor > 1 ? `You tend to take ${factor.toFixed(1)}× longer than you estimate.` : `You tend to need ${factor.toFixed(1)}× your estimate.`;
+        return `<article class="stat-card"><p class="stat-label">${escapeHtml(category)}</p><p class="factor">${factor.toFixed(1)}×</p><p class="stat-explanation">${sentence}</p></article>`;
+      }).join('');
+    }
+
+    function renderRecords(tasks) {
+      const completed = tasks.filter(task => task.actual_minutes !== null).sort((a, b) => new Date(a.completed_at) - new Date(b.completed_at));
+      recordCount.textContent = completed.length ? `${completed.length} completed` : '';
+      if (!completed.length) {
+        chartWrap.innerHTML = '<div class="empty">Finish tasks to build your time record.</div>';
+        analyticsSummary.innerHTML = '';
+        recordTable.innerHTML = '<div class="empty">Your completed-task record will appear here.</div>';
+        return;
+      }
+      renderLineChart(completed);
+      const averageRatio = completed.reduce((sum, task) => sum + task.actual_minutes / task.estimated_minutes, 0) / completed.length;
+      // Score each task by the smaller value divided by the larger one. This is
+      // symmetric: predicting 30m for 60m of work scores the same as predicting
+      // 60m for 30m of work (50%), rather than unfairly dropping one to zero.
+      const predictionConsistency = completed.reduce((sum, task) => {
+        const smaller = Math.min(task.actual_minutes, task.predicted_minutes);
+        const larger = Math.max(task.actual_minutes, task.predicted_minutes);
+        return sum + (smaller / larger) * 100;
+      }, 0) / completed.length;
+      analyticsSummary.innerHTML = `<article class="metric-card"><p>Actual-time honesty</p><strong>${(averageRatio * 100).toFixed(0)}%</strong><small>Actual time logged versus your original estimates.</small></article><article class="metric-card"><p>Prediction consistency</p><strong>${predictionConsistency.toFixed(0)}%</strong><small>Average match between TEMPUS predictions and actual time.</small></article>`;
+      recordTable.innerHTML = `<table><thead><tr><th>Task</th><th>Category</th><th>Estimate</th><th>Prediction</th><th>Actual</th><th>Difference</th></tr></thead><tbody>${completed.slice().reverse().map(task => { const difference = task.actual_minutes - task.estimated_minutes; const sign = difference > 0 ? '+' : ''; const klass = difference > 0 ? 'positive' : difference < 0 ? 'negative' : ''; return `<tr><td>${escapeHtml(task.title)}</td><td>${escapeHtml(task.category)}</td><td>${formatMinutes(task.estimated_minutes)}</td><td>${formatMinutes(task.predicted_minutes)}</td><td>${formatMinutes(task.actual_minutes)}</td><td class="${klass}">${sign}${formatMinutes(difference)}</td></tr>`; }).join('')}</tbody></table>`;
+    }
+
+    function renderLineChart(tasks) {
+      const width = 760, height = 280, left = 58, right = 22, top = 26, bottom = 47;
+      const values = tasks.flatMap(task => [Number(task.estimated_minutes), Number(task.actual_minutes)]);
+      const maxValue = Math.max(10, ...values) * 1.12;
+      const x = index => tasks.length === 1 ? (left + width - right) / 2 : left + index * ((width - left - right) / (tasks.length - 1));
+      const y = value => height - bottom - value / maxValue * (height - top - bottom);
+      const points = key => tasks.map((task, index) => `${x(index).toFixed(1)},${y(Number(task[key])).toFixed(1)}`).join(' ');
+      const grid = [0, .25, .5, .75, 1].map(ratio => { const value = maxValue * ratio; const lineY = y(value); return `<line x1="${left}" y1="${lineY}" x2="${width-right}" y2="${lineY}" stroke="#dbe3ef"/><text x="${left-9}" y="${lineY+4}" text-anchor="end" fill="#64748b" font-size="11">${Math.round(value)}m</text>`; }).join('');
+      const tickIndices = [...new Set([0, Math.round((tasks.length - 1) / 2), tasks.length - 1])];
+      const ticks = tickIndices.map(index => `<text x="${x(index)}" y="${height-16}" text-anchor="middle" fill="#64748b" font-size="11">Task ${index + 1}</text>`).join('');
+      const circles = (key, color) => tasks.map((task, index) => `<circle cx="${x(index)}" cy="${y(Number(task[key]))}" r="4" fill="${color}"><title>${escapeHtml(task.title)}: ${key === 'estimated_minutes' ? 'estimated' : 'actual'} ${formatMinutes(task[key])}</title></circle>`).join('');
+      chartWrap.innerHTML = `<svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Line graph comparing each completed task's estimated and actual minutes"><title>Estimate versus actual time</title><desc>Grey marks estimates and purple marks actual logged time for completed tasks in chronological order.</desc>${grid}<line x1="${left}" y1="${height-bottom}" x2="${width-right}" y2="${height-bottom}" stroke="#94a3b8"/><polyline points="${points('estimated_minutes')}" fill="none" stroke="#94a3b8" stroke-width="2"/><polyline points="${points('actual_minutes')}" fill="none" stroke="#5b44d6" stroke-width="3"/>${circles('estimated_minutes','#94a3b8')}${circles('actual_minutes','#5b44d6')}${ticks}<text x="${(left + width - right) / 2}" y="${height - 1}" text-anchor="middle" fill="#64748b" font-size="11">Completed tasks in order</text></svg><div class="chart-legend"><span class="chart-key"><i class="chart-dot estimate"></i>Original estimate</span><span class="chart-key"><i class="chart-dot actual"></i>Actual logged time</span></div>`;
+    }
+
+    async function loadDashboard() {
+      try {
+        dashboardTasks = await apiRequest('/tasks');
+        const activeTask = dashboardTasks.find(task => task.is_active);
+        clearInterval(activeTimerId);
+        activeTask ? renderActiveTask(activeTask) : renderComposer();
+        renderTasks(dashboardTasks);
+        await renderStats(dashboardTasks);
+        renderRecords(dashboardTasks);
+      } catch (error) {
+        composerSlot.innerHTML = '<section class="panel"><div class="empty">Can’t reach the local server. Start <code>backend/app.py</code>, then refresh.</div></section>';
+        taskList.innerHTML = ''; statsList.innerHTML = ''; chartWrap.innerHTML = '';
+      }
+    }
+
+    async function createTask(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = document.querySelector('#submit-button');
+      button.disabled = true;
+      try {
+        const task = await apiRequest('/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.fromEntries(new FormData(form).entries())) });
+        await loadDashboard();
+        showMessage(`Added. Your estimate: ${formatMinutes(task.estimated_minutes)}. TEMPUS predicts ${formatMinutes(task.predicted_minutes)}.`);
+      } catch (error) { showMessage(error.message, true); button.disabled = false; }
+    }
+
+    async function startTask(taskId) {
+      try { await apiRequest(`/tasks/${taskId}/start`, { method:'POST' }); await loadDashboard(); }
+      catch (error) { alert(error.message); }
+    }
+
+    async function startBreak(taskId) {
+      try { await apiRequest(`/tasks/${taskId}/break`, { method:'POST' }); await loadDashboard(); }
+      catch (error) { showMessage(error.message, true); }
+    }
+
+    async function finishTrackedTask(taskId) {
+      try { await apiRequest(`/tasks/${taskId}/complete`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' }); await loadDashboard(); }
+      catch (error) { showMessage(error.message, true); }
+    }
+
+    taskList.addEventListener('click', event => { const button = event.target.closest('.start-task'); if (button) startTask(button.dataset.taskId); });
+    taskList.addEventListener('submit', async event => {
+      const form = event.target.closest('.manual-completion');
+      if (!form) return;
+      event.preventDefault();
+      try { await apiRequest(`/tasks/${form.dataset.taskId}/complete`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.fromEntries(new FormData(form).entries())) }); await loadDashboard(); }
+      catch (error) { alert(error.message); }
+    });
+
+    document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(item => item.setAttribute('aria-selected', String(item === tab)));
+      document.querySelector('#planner-panel').hidden = tab.id !== 'planner-tab';
+      document.querySelector('#records-panel').hidden = tab.id !== 'records-tab';
+    }));
+
+    loadDashboard();
+  </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+backend/tempus.db
+backend/timeblind.db
+backend/__pycache__/
+*.pyc

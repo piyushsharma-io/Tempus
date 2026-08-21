@@ -1,0 +1,14 @@
+services:
+  - type: web
+    runtime: python
+    name: tempus
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: gunicorn --chdir backend --workers 1 --bind 0.0.0.0:$PORT app:app
+    healthCheckPath: /health
+    envVars:
+      - key: TEMPUS_DATABASE
+        value: /var/data/timeblind.db
+    disk:
+      name: tempus-data
+      mountPath: /var/data
+      sizeGB: 1
